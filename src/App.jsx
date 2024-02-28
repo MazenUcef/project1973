@@ -1,33 +1,108 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import './App.css';
+import '@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
+import {MainContainer , ChatContainer , MessageList , Message , MessageInput , TypingIndicator } from '@chatscope/chat-ui-kit-react';
+
+const API_KEY = "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";
+const systemMessage = { //  Explain things like you're talking to a software professional with 5 years of experience.
+  "role": "system", "content": "Explain things like you're talking to a software professional with 2 years of experience."}
+
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [messages, setMessages] = useState([
+    {
+      message: "Hello, I'm ChatGPT! Ask me anything!",
+      sentTime: "just now",
+      sender: "ChatGPT"
+    }
+  ]);
+  const [isTyping, setIsTyping] = useState(false);
 
+  const handleSend = async (message) => {
+    const newMessage = {
+      message,
+      direction: 'outgoing',
+      sender: "user"
+    };
+
+    const newMessages = [...messages, newMessage];
+    
+    setMessages(newMessages);
+
+    // Initial system message to determine ChatGPT functionality
+    // How it responds, how it talks, etc.
+    setIsTyping(true);
+    await processMessageToChatGPT(newMessages);
+  };
+
+  async function processMessageToChatGPT(chatMessages) { // messages is an array of messages
+    // Format messages for chatGPT API
+    // API is expecting objects in format of { role: "user" or "assistant", "content": "message here"}
+    // So we need to reformat
+
+    let apiMessages = chatMessages.map((messageObject) => {
+      let role = "";
+      if (messageObject.sender === "ChatGPT") {
+        role = "assistant";
+      } else {
+        role = "user";
+      }
+      return { role: role, content: messageObject.message}
+    });
+
+
+    // Get the request body set up with the model we plan to use
+    // and the messages which we formatted above. We add a system message in the front to'
+    // determine how we want chatGPT to act. 
+    const apiRequestBody = {
+      "model": "gpt-3.5-turbo",
+      "messages": [
+        systemMessage,  // The system message DEFINES the logic of our chatGPT
+        ...apiMessages // The messages from our chat with ChatGPT
+      ]
+    }
+
+    await fetch("https://api.openai.com/v1/chat/completions", 
+    {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(apiRequestBody)
+    }).then((data) => {
+      return data.json();
+    }).then((data) => {
+      console.log(data);
+
+    });
+  }
   return (
     <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+      <div className='container py-3' style={{position:"relative"}}>
+        <div className='row'>
+            <div className='d-flex justify-content-center align-items-center'>
+              <div className='col-sm-12 col-md-6 col-lg-6'>
+              <div>
+                <div className='title'>
+                Welcome to ChatBot&copy; created by mazenUcef
+                </div>
+              </div>
+              <MainContainer className='chat-container'>
+              <ChatContainer >
+                <MessageList className='chat-container' typingIndicator={isTyping ? <TypingIndicator content="ChatBot is typing" /> : null}>
+                  {messages.map((message , i)=>{
+                  return <Message  key={i} model={message}
+                />
+                })}
+                </MessageList>
+                <MessageInput placeholder='Ask Your Questions' onSend={handleSend} />
+              </ChatContainer>
+            </MainContainer>
+              </div>
+            </div>
+        </div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </>
   )
 }
